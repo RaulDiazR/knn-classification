@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 
 # Function to calculate euclidean distance between two points
 def euclidean_distance(point1, point2):
@@ -11,6 +12,24 @@ classification_file = "Diabetes-Clasificacion.csv"
 
 train_data = pd.read_csv(train_file)
 classification_data = pd.read_csv(classification_file)
+
+# Separate features and labels
+X_train = train_data.drop('class', axis=1)
+y_train = train_data['class']
+X_classification = classification_data.drop('class', axis=1)
+y_classification = classification_data['class']
+
+# Normalize using MinMaxScaler: fit on training data, transform both
+scaler = MinMaxScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_classification_scaled = scaler.transform(X_classification)
+
+# Reconstruct DataFrames with class column
+train_data_scaled = pd.DataFrame(X_train_scaled, columns=X_train.columns)
+train_data_scaled['class'] = y_train.values
+
+classification_data_scaled = pd.DataFrame(X_classification_scaled, columns=X_classification.columns)
+classification_data_scaled['class'] = y_classification.values
 
 def knn_classifier(train_data, classification_data, k=3):
     predictions = []
@@ -34,10 +53,7 @@ def knn_classifier(train_data, classification_data, k=3):
         # Count the most common classes
         class_votes = {}
         for _, neighbor_class in neighbors:
-            if neighbor_class in class_votes:
-                class_votes[neighbor_class] += 1
-            else:
-                class_votes[neighbor_class] = 1
+            class_votes[neighbor_class] = class_votes.get(neighbor_class, 0) + 1
         
         # Obtain the class with the most votes
         predicted_class = max(class_votes, key=class_votes.get)
@@ -50,12 +66,7 @@ def knn_classifier(train_data, classification_data, k=3):
 
 # Function to calculate accuracy of the algorithm
 def evaluate_accuracy(predictions, actual_classes):
-    correct = 0
-    # Loop through predictions and actual_classes
-    for pred, actual in zip(predictions, actual_classes):
-        if pred == actual:
-            correct += 1
-    
+    correct = sum(pred == actual for pred, actual in zip(predictions, actual_classes))
     accuracy = (correct / len(actual_classes)) * 100
     return accuracy
 
@@ -63,10 +74,10 @@ def evaluate_accuracy(predictions, actual_classes):
 k = int(input('Enter the value of k: '))
 
 # Run KNN with the user-defined k value
-predictions, neighbor_counts = knn_classifier(train_data, classification_data, k)
+predictions, neighbor_counts = knn_classifier(train_data_scaled, classification_data_scaled, k)
 
 # Evaluate accuracy
-accuracy = evaluate_accuracy(predictions, classification_data['class'])
+accuracy = evaluate_accuracy(predictions, classification_data_scaled['class'])
 print(f"Accuracy: {accuracy}%")
 
 # Prepare the data for neighbor count CSV
